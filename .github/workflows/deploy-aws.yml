@@ -23,9 +23,14 @@ jobs:
         id: tfstate
         env:
           AWS_REGION: ${{ vars.AWS_REGION }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
         run: |
-          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-          BUCKET="url-shortener-terraform-state-${ACCOUNT_ID}-${AWS_REGION}"
+          if [ -z "$TF_STATE_BUCKET" ]; then
+            echo "::error::Set the TF_STATE_BUCKET repository variable to your Terraform state S3 bucket."
+            exit 1
+          fi
+
+          BUCKET="$TF_STATE_BUCKET"
           KEY="prod/terraform.tfstate"
 
           if ! aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then

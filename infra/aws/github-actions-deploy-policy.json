@@ -32,11 +32,11 @@
         "s3:CreateBucket",
         "s3:GetBucketLocation",
         "s3:ListBucket",
-        "s3:PutBucketEncryption",
+        "s3:PutEncryptionConfiguration",
         "s3:PutBucketPublicAccessBlock",
         "s3:PutBucketVersioning"
       ],
-      "Resource": "arn:aws:s3:::url-shortener-terraform-state-YOUR_AWS_ACCOUNT_ID-YOUR_REGION"
+      "Resource": "arn:aws:s3:::YOUR_TF_STATE_BUCKET"
     },
     {
       "Sid": "TerraformStateObjects",
@@ -47,8 +47,8 @@
         "s3:PutObject"
       ],
       "Resource": [
-        "arn:aws:s3:::url-shortener-terraform-state-YOUR_AWS_ACCOUNT_ID-YOUR_REGION/prod/terraform.tfstate",
-        "arn:aws:s3:::url-shortener-terraform-state-YOUR_AWS_ACCOUNT_ID-YOUR_REGION/prod/terraform.tfstate.tflock"
+        "arn:aws:s3:::YOUR_TF_STATE_BUCKET/prod/terraform.tfstate",
+        "arn:aws:s3:::YOUR_TF_STATE_BUCKET/prod/terraform.tfstate.tflock"
       ]
     },
     {

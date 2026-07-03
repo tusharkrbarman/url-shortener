@@ -81,6 +81,7 @@ Required GitHub variables:
 
 - `AWS_REGION`
 - `BASE_URL`
+- `TF_STATE_BUCKET`
 
 Required GitHub secrets:
 
@@ -88,9 +89,9 @@ Required GitHub secrets:
 - `API_KEYS`
 - `DB_PASSWORD`
 
-The deploy role needs permissions for every AWS service Terraform manages. A starter inline policy is available at `infra/aws/github-actions-deploy-policy.json`; replace `YOUR_AWS_ACCOUNT_ID` and `YOUR_REGION` before attaching it to the role.
+The deploy role needs permissions for every AWS service Terraform manages. A starter inline policy is available at `infra/aws/github-actions-deploy-policy.json`; replace `YOUR_AWS_ACCOUNT_ID`, `YOUR_REGION`, and `YOUR_TF_STATE_BUCKET` before attaching it to the role.
 
-The workflow stores Terraform state in an S3 bucket named `url-shortener-terraform-state-<account-id>-<region>` with bucket versioning, AES-256 encryption, public access blocking, and Terraform's S3 lock file enabled.
+The workflow stores Terraform state in the S3 bucket configured by `TF_STATE_BUCKET` with bucket versioning, AES-256 encryption, public access blocking, and Terraform's S3 lock file enabled. For this AWS account, use `url-shortener-terraform-state-654158184275-ap-south-1-an`.
 
 The GitHub deployment sets `TF_VAR_db_backup_retention_period=0`, which disables automated RDS backups for this bootstrap environment.
 
