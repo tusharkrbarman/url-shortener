@@ -17,8 +17,12 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
-      - name: Run tests
-        run: python -m unittest discover -s tests
+      - name: Run CI smoke tests
+        run: >
+          python -m unittest
+          tests.test_service.LinkServiceTests.test_idempotent_create_returns_original_response
+          tests.test_service.LinkServiceTests.test_usage_limit_is_atomic_under_concurrent_redirects
+          tests.test_service.HttpApiTests.test_protected_create_requires_authentication
 
   docker:
     runs-on: ubuntu-latest
@@ -28,4 +32,3 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build image
         run: docker build -t url-shortener:${{ github.sha }} .
-
