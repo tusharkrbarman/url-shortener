@@ -77,7 +77,7 @@ The manual `Deploy AWS` workflow:
 3. Builds and pushes the Docker image.
 4. Runs Terraform against `infra/terraform`.
 
-The manual `Terraform Control` workflow runs Terraform against the same S3 state without building an image. Choose `plan`, `apply`, or `destroy`. Destroy requires the confirmation phrase `destroy url-shortener`.
+The manual `Terraform Control` workflow runs Terraform against the same S3 state without building an image. Choose `plan`, `import-known`, `apply`, or `destroy`. Use `import-known` once to import common leftovers from failed bootstrap runs into the S3 state. Destroy requires the confirmation phrase `destroy url-shortener`.
 
 Required GitHub variables:
 

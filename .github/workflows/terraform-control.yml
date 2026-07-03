@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - plan
+          - import-known
           - apply
           - destroy
       container_image:
@@ -99,6 +100,68 @@ jobs:
 
           case "$ACTION" in
             plan)
+              terraform plan
+              ;;
+            import-known)
+              import_if_unmanaged() {
+                address="$1"
+                id="$2"
+
+                if [ -z "$id" ] || [ "$id" = "None" ]; then
+                  echo "Skipping $address because no existing AWS resource was found."
+                  return 0
+                fi
+
+                if terraform state show "$address" >/dev/null 2>&1; then
+                  echo "Skipping $address because it is already managed in state."
+                  return 0
+                fi
+
+                terraform import "$address" "$id"
+              }
+
+              db_subnet_group="$(aws rds describe-db-subnet-groups \
+                --db-subnet-group-name url-shortener \
+                --query 'DBSubnetGroups[0].DBSubnetGroupName' \
+                --output text 2>/dev/null || true)"
+              cache_subnet_group="$(aws elasticache describe-cache-subnet-groups \
+                --cache-subnet-group-name url-shortener \
+                --query 'CacheSubnetGroups[0].CacheSubnetGroupName' \
+                --output text 2>/dev/null || true)"
+              api_keys_secret_arn="$(aws secretsmanager describe-secret \
+                --secret-id url-shortener/api-keys \
+                --query ARN \
+                --output text 2>/dev/null || true)"
+              database_url_secret_arn="$(aws secretsmanager describe-secret \
+                --secret-id url-shortener/database-url \
+                --query ARN \
+                --output text 2>/dev/null || true)"
+              log_group="$(aws logs describe-log-groups \
+                --log-group-name-prefix /ecs/url-shortener \
+                --query "logGroups[?logGroupName=='/ecs/url-shortener'].logGroupName | [0]" \
+                --output text 2>/dev/null || true)"
+              task_execution_role="$(aws iam get-role \
+                --role-name url-shortener-task-execution \
+                --query Role.RoleName \
+                --output text 2>/dev/null || true)"
+              lb_arn="$(aws elbv2 describe-load-balancers \
+                --names url-shortener \
+                --query 'LoadBalancers[0].LoadBalancerArn' \
+                --output text 2>/dev/null || true)"
+              target_group_arn="$(aws elbv2 describe-target-groups \
+                --names url-shortener \
+                --query 'TargetGroups[0].TargetGroupArn' \
+                --output text 2>/dev/null || true)"
+
+              import_if_unmanaged aws_db_subnet_group.main "$db_subnet_group"
+              import_if_unmanaged aws_elasticache_subnet_group.main "$cache_subnet_group"
+              import_if_unmanaged aws_secretsmanager_secret.api_keys "$api_keys_secret_arn"
+              import_if_unmanaged aws_secretsmanager_secret.database_url "$database_url_secret_arn"
+              import_if_unmanaged aws_cloudwatch_log_group.app "$log_group"
+              import_if_unmanaged aws_iam_role.task_execution "$task_execution_role"
+              import_if_unmanaged aws_lb.api "$lb_arn"
+              import_if_unmanaged aws_lb_target_group.api "$target_group_arn"
+
               terraform plan
               ;;
             apply)
