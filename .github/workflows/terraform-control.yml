@@ -172,6 +172,9 @@ jobs:
                 echo "::error::To destroy, set confirm_destroy to: destroy url-shortener"
                 exit 1
               fi
+              if terraform state show aws_db_instance.postgres >/dev/null 2>&1; then
+                terraform apply -target=aws_db_instance.postgres -auto-approve
+              fi
               terraform destroy -auto-approve
               ;;
             *)
