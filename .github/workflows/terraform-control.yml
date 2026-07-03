@@ -1,0 +1,118 @@
+name: Terraform Control
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Terraform command to run.
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      container_image:
+        description: Optional image URI. Defaults to the ECR url-shortener:latest image.
+        required: false
+        type: string
+      confirm_destroy:
+        description: Type "destroy url-shortener" when action is destroy.
+        required: false
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Prepare Terraform state backend
+        id: tfstate
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          if [ -z "$TF_STATE_BUCKET" ]; then
+            echo "::error::Set the TF_STATE_BUCKET repository variable to your Terraform state S3 bucket."
+            exit 1
+          fi
+
+          if ! aws s3api head-bucket --bucket "$TF_STATE_BUCKET" 2>/dev/null; then
+            echo "::error::Terraform state bucket does not exist: $TF_STATE_BUCKET"
+            exit 1
+          fi
+
+          aws s3api put-bucket-versioning \
+            --bucket "$TF_STATE_BUCKET" \
+            --versioning-configuration Status=Enabled
+          aws s3api put-bucket-encryption \
+            --bucket "$TF_STATE_BUCKET" \
+            --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+          aws s3api put-public-access-block \
+            --bucket "$TF_STATE_BUCKET" \
+            --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+
+          echo "bucket=$TF_STATE_BUCKET" >> "$GITHUB_OUTPUT"
+          echo "key=prod/terraform.tfstate" >> "$GITHUB_OUTPUT"
+      - name: Resolve container image
+        id: image
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          INPUT_IMAGE: ${{ inputs.container_image }}
+        run: |
+          if [ -n "$INPUT_IMAGE" ]; then
+            echo "container_image=$INPUT_IMAGE" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          echo "container_image=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/url-shortener:latest" >> "$GITHUB_OUTPUT"
+      - uses: hashicorp/setup-terraform@v3
+      - name: Terraform ${{ inputs.action }}
+        working-directory: infra/terraform
+        env:
+          TF_INPUT: false
+          TF_VAR_container_image: ${{ steps.image.outputs.container_image }}
+          TF_VAR_base_url: ${{ vars.BASE_URL }}
+          TF_VAR_api_keys: ${{ secrets.API_KEYS }}
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_db_backup_retention_period: 0
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          ACTION: ${{ inputs.action }}
+          CONFIRM_DESTROY: ${{ inputs.confirm_destroy }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ steps.tfstate.outputs.bucket }}" \
+            -backend-config="key=${{ steps.tfstate.outputs.key }}" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true"
+
+          case "$ACTION" in
+            plan)
+              terraform plan
+              ;;
+            apply)
+              terraform apply -auto-approve
+              ;;
+            destroy)
+              if [ "$CONFIRM_DESTROY" != "destroy url-shortener" ]; then
+                echo "::error::To destroy, set confirm_destroy to: destroy url-shortener"
+                exit 1
+              fi
+              terraform destroy -auto-approve
+              ;;
+            *)
+              echo "::error::Unsupported action: $ACTION"
+              exit 1
+              ;;
+          esac
