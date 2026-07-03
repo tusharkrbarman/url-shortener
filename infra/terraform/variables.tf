@@ -38,6 +38,12 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "db_backup_retention_period" {
+  description = "RDS automated backup retention in days. Use 1 for free-tier constrained accounts and 7+ for production accounts."
+  type        = number
+  default     = 1
+}
+
 variable "desired_api_count" {
   description = "Number of API tasks."
   type        = number
@@ -49,4 +55,3 @@ variable "desired_worker_count" {
   type        = number
   default     = 1
 }
-

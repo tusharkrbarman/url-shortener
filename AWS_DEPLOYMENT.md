@@ -88,6 +88,10 @@ Required GitHub secrets:
 - `API_KEYS`
 - `DB_PASSWORD`
 
+The deploy role needs permissions for every AWS service Terraform manages. A starter inline policy is available at `infra/aws/github-actions-deploy-policy.json`; replace `YOUR_AWS_ACCOUNT_ID` and `YOUR_REGION` before attaching it to the role.
+
+If the first Terraform run fails before remote state is configured, clean up the partially created `url-shortener` resources before re-running. Otherwise, the next GitHub-hosted runner starts with an empty local Terraform state and may try to create duplicates.
+
 ## Operational Checks
 
 After deployment:
