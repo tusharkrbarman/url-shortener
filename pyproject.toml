@@ -1,9 +1,12 @@
 [project]
 name = "url-shortener"
 version = "0.1.0"
-description = "Production-shaped URL shortening service using Python standard library components."
+description = "Production-grade Python URL shortening service for AWS ECS, RDS PostgreSQL, and ElastiCache Redis."
 requires-python = ">=3.11"
+dependencies = [
+    "psycopg[binary]>=3.2,<4",
+    "redis>=5,<7",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-

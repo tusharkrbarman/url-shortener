@@ -1,7 +1,11 @@
 import re
 import time
+import logging
 
 from .errors import BadRequest, RateLimited
+from .logging_utils import log_event
+
+LOGGER = logging.getLogger("shortener.rate_limit")
 
 
 WINDOWS = {
@@ -46,3 +50,42 @@ class RateLimiter:
                 (key,),
             )
 
+
+class RedisRateLimiter:
+    def __init__(self, redis_url: str):
+        try:
+            import redis
+        except ImportError as exc:
+            raise RuntimeError("Redis rate limiting requires redis-py. Install production dependencies.") from exc
+        self.client = redis.Redis.from_url(redis_url, decode_responses=True)
+
+    def ready(self) -> bool:
+        try:
+            return bool(self.client.ping())
+        except Exception:
+            return False
+
+    def check(self, key: str, limit_spec: str):
+        limit, window_seconds = parse_limit(limit_spec)
+        now = int(time.time())
+        window_start = now - (now % window_seconds)
+        redis_key = f"rl:{key}:{window_start}"
+        try:
+            count = self.client.incr(redis_key)
+            if count == 1:
+                self.client.expire(redis_key, window_seconds * 2)
+            if count > limit:
+                raise RateLimited()
+        except RateLimited:
+            raise
+        except Exception as exc:
+            log_event(LOGGER, logging.ERROR, "dependency.unavailable", dependency="redis", operation="rate_limit", errorType=type(exc).__name__)
+            raise
+
+
+def create_rate_limiter(config, db):
+    if config.rate_limit_backend == "redis":
+        if not config.redis_url:
+            raise RuntimeError("REDIS_URL is required when RATE_LIMIT_BACKEND=redis.")
+        return RedisRateLimiter(config.redis_url)
+    return RateLimiter(db)

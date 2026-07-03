@@ -7,26 +7,63 @@ services:
       APP_ENV: development
       PORT: 8080
       BASE_URL: http://localhost:8080
-      DATABASE_PATH: /app/data/shortener.db
+      DATABASE_BACKEND: postgres
+      DATABASE_URL: postgresql://shortener:shortener@postgres:5432/shortener
+      REDIS_URL: redis://redis:6379/0
+      RATE_LIMIT_BACKEND: redis
       API_KEYS: dev-api-key
       SERVICE_MODE: api
       VALIDATION_ENABLED: "true"
       LOG_LEVEL: info
-    volumes:
-      - shortener-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   worker:
     build: .
     environment:
       APP_ENV: development
-      DATABASE_PATH: /app/data/shortener.db
+      DATABASE_BACKEND: postgres
+      DATABASE_URL: postgresql://shortener:shortener@postgres:5432/shortener
+      REDIS_URL: redis://redis:6379/0
+      RATE_LIMIT_BACKEND: redis
       API_KEYS: dev-api-key
       SERVICE_MODE: worker
       VALIDATION_ENABLED: "true"
       LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shortener
+      POSTGRES_PASSWORD: shortener
+      POSTGRES_DB: shortener
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shortener -d shortener"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     volumes:
-      - shortener-data:/app/data
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - redis-data:/data
 
 volumes:
-  shortener-data:
-
+  postgres-data:
+  redis-data:

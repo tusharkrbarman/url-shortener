@@ -2,50 +2,9 @@
 
 This service is built in Python and runs as a container. It exposes one API process and one worker process from the same image, selected with `SERVICE_MODE`.
 
-## Option 1: EC2 With Docker Compose
+## Production Architecture
 
-This is the fastest AWS deployment path for the current self-contained implementation.
-
-Use this when:
-
-- You want a simple deploy for a hackathon or first production-shaped demo.
-- One API instance is acceptable.
-- SQLite persistence on an attached EBS volume is acceptable.
-
-AWS resources:
-
-- EC2 instance.
-- Security group allowing inbound `80` or `443`.
-- EBS volume mounted for persistent data.
-- Optional CloudWatch agent for logs.
-- Optional Application Load Balancer in front of EC2.
-
-Recommended runtime values:
-
-```text
-APP_ENV=production
-PORT=8080
-BASE_URL=https://your-domain.example
-DATABASE_PATH=/app/data/shortener.db
-API_KEYS=<secret-api-key>
-SERVICE_MODE=api
-VALIDATION_ENABLED=true
-LOG_LEVEL=info
-```
-
-Deployment steps:
-
-1. Build and push the image to Amazon ECR, or copy the repository to the EC2 instance.
-2. Mount an EBS-backed directory for persistent data.
-3. Run `docker compose up -d --build`.
-4. Configure a reverse proxy or load balancer to forward traffic to port `8080`.
-5. Check `GET /healthz` and `GET /readyz`.
-
-Important note: SQLite is reliable for this single-node deployment, but it is not the best fit for horizontally scaled API containers.
-
-## Option 2: ECS Fargate With RDS And ElastiCache
-
-This is the recommended AWS production architecture.
+The production architecture is ECS Fargate with RDS PostgreSQL and ElastiCache Redis.
 
 AWS resources:
 
@@ -71,9 +30,22 @@ Health checks:
 - ALB target group health check: `GET /healthz`.
 - Deployment readiness check: `GET /readyz`.
 
-Production storage note:
+Runtime values:
 
-The current code ships with a standard-library SQLite adapter so the project runs without dependency downloads. For a horizontally scaled ECS deployment, add a PostgreSQL adapter and Redis-backed queue/rate limiter while preserving the API contract and tests.
+```text
+APP_ENV=production
+PORT=8080
+BASE_URL=https://your-domain.example
+DATABASE_BACKEND=postgres
+DATABASE_URL=<from Secrets Manager>
+REDIS_URL=rediss://<elasticache-endpoint>:6379/0
+RATE_LIMIT_BACKEND=redis
+API_KEYS=<from Secrets Manager>
+VALIDATION_ENABLED=true
+LOG_LEVEL=info
+```
+
+The code still supports SQLite for fast local tests, but scaled production should use `DATABASE_BACKEND=postgres` and `RATE_LIMIT_BACKEND=redis`.
 
 ## Suggested AWS Secret Values
 
@@ -83,6 +55,38 @@ Store these in Secrets Manager or SSM Parameter Store:
 - `DATABASE_URL`, when using RDS PostgreSQL
 - `REDIS_URL`, when using ElastiCache Redis
 - External validation provider credentials, if added
+
+The Terraform stack in `infra/terraform` creates Secrets Manager secrets for `API_KEYS` and `DATABASE_URL` and injects them into ECS tasks as secrets.
+
+## Terraform Deployment
+
+```bash
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+```
+
+## GitHub Actions Deployment
+
+The manual `Deploy AWS` workflow:
+
+1. Authenticates to AWS through OIDC.
+2. Ensures an ECR repository exists.
+3. Builds and pushes the Docker image.
+4. Runs Terraform against `infra/terraform`.
+
+Required GitHub variables:
+
+- `AWS_REGION`
+- `BASE_URL`
+
+Required GitHub secrets:
+
+- `AWS_DEPLOY_ROLE_ARN`
+- `API_KEYS`
+- `DB_PASSWORD`
 
 ## Operational Checks
 
@@ -103,4 +107,3 @@ curl -i -X POST https://your-domain.example/api/v1/links \
   -H "Content-Type: application/json" \
   -d '{"url":"https://example.com","customCode":"awsdemo","usageLimit":5}'
 ```
-

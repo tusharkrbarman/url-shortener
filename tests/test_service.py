@@ -1,13 +1,15 @@
 import json
+import os
 import tempfile
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from shortener.config import Config
-from shortener.db import Database
+from shortener.db import Database, _pg_sql, _split_sql_statements, create_database
 from shortener.errors import Conflict, RateLimited, Unauthorized
 from shortener.http_api import ShortenerServer
 from shortener.rate_limit import RateLimiter
@@ -142,6 +144,32 @@ class LinkServiceTests(unittest.TestCase):
             results = list(pool.map(lambda _: attempt(), range(20)))
         self.assertEqual(sum(results), 5)
 
+    def test_production_config_can_select_postgres_and_redis(self):
+        with patch.dict(
+            os.environ,
+            {
+                "DATABASE_BACKEND": "postgres",
+                "DATABASE_URL": "postgresql://user:pass@example.com:5432/app",
+                "REDIS_URL": "rediss://redis.example.com:6379/0",
+                "RATE_LIMIT_BACKEND": "redis",
+                "API_KEYS": "one,two",
+            },
+            clear=False,
+        ):
+            config = Config.from_env()
+        self.assertEqual(config.database_backend, "postgres")
+        self.assertEqual(config.rate_limit_backend, "redis")
+        self.assertEqual(config.api_keys, ("one", "two"))
+
+    def test_postgres_backend_requires_database_url(self):
+        config = Config(database_backend="postgres", database_url=None)
+        with self.assertRaises(RuntimeError):
+            create_database(config)
+
+    def test_postgres_sql_helpers_translate_sqlite_placeholders(self):
+        self.assertEqual(_pg_sql("SELECT * FROM links WHERE id = ?"), "SELECT * FROM links WHERE id = %s")
+        self.assertEqual(_split_sql_statements("SELECT 1; SELECT 2;"), ["SELECT 1", "SELECT 2"])
+
 
 class HttpApiTests(unittest.TestCase):
     def setUp(self):
@@ -192,4 +220,3 @@ class HttpApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

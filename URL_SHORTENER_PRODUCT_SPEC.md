@@ -791,10 +791,7 @@ docker compose run --rm api migrate
 
 ## 18. AWS Deployment
 
-Recommended deployment targets:
-
-- First deployable version: Amazon EC2 with Docker Compose and an attached EBS volume.
-- Scaled production version: Amazon ECS Fargate with Amazon RDS PostgreSQL and Amazon ElastiCache Redis.
+Recommended deployment target: Amazon ECS Fargate with Amazon RDS PostgreSQL and Amazon ElastiCache Redis.
 
 ### Services
 
@@ -812,14 +809,14 @@ Recommended deployment targets:
 
 AWS mapping:
 
-- API container: ECS Fargate service or EC2 Docker Compose service.
-- Worker container: ECS Fargate service or EC2 Docker Compose service with `SERVICE_MODE=worker`.
-- Durable database: RDS PostgreSQL for scaled production, or EBS-backed SQLite for the first self-contained deployment.
+- API container: ECS Fargate service.
+- Worker container: ECS Fargate service with `SERVICE_MODE=worker`.
+- Durable database: RDS PostgreSQL.
 - Distributed queue and rate limiting: ElastiCache Redis for scaled production.
 - Logs: CloudWatch Logs.
 - Metrics: CloudWatch metrics or Prometheus scraping of `/metrics`.
 - Secrets: AWS Secrets Manager or SSM Parameter Store.
-- Public ingress: Application Load Balancer, API Gateway, or reverse proxy on EC2.
+- Public ingress: Application Load Balancer or API Gateway.
 
 ### Required Secrets
 
@@ -887,7 +884,7 @@ The implementation should be built with Python. A practical default:
 - ORM/query layer: SQLAlchemy, direct SQL migrations, or a small repository layer.
 - Tests: unittest, Pytest, or equivalent.
 - Container: Docker.
-- Deployment: AWS EC2 for the self-contained first version, or AWS ECS Fargate with RDS and ElastiCache for larger production use.
+- Deployment: AWS ECS Fargate with RDS PostgreSQL and ElastiCache Redis.
 
 For highest concurrency correctness, the usage-limit enforcement should rely on database atomic updates rather than application-level locks.
 

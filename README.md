@@ -2,7 +2,7 @@
 
 Production-shaped URL shortening service built from the product spec in `URL_SHORTENER_PRODUCT_SPEC.md`.
 
-The implementation uses only the Python standard library so it can run in constrained environments without dependency downloads. It includes authenticated link creation, public redirects, idempotency, link lifecycle, background validation, usage limits, SQLite persistence, concurrent-safe counters, structured JSON logs, health/readiness endpoints, metrics, tests, Docker, and AWS deployment guidance.
+The implementation is Python and supports both fast local development and scaled AWS production. It includes authenticated link creation, public redirects, idempotency, link lifecycle, background validation, usage limits, PostgreSQL/SQLite persistence, Redis/database-backed rate limits, structured JSON logs, health/readiness endpoints, metrics, tests, Docker, GitHub Actions, and Terraform for ECS Fargate, RDS PostgreSQL, and ElastiCache Redis.
 
 ## Run Locally
 
@@ -50,6 +50,8 @@ python -m unittest discover -s tests
 docker compose up --build
 ```
 
+Docker Compose runs the API, worker, PostgreSQL, and Redis.
+
 ## Important Endpoints
 
 - `POST /api/v1/links`: create link, requires `Authorization` and `Idempotency-Key`.
@@ -69,6 +71,10 @@ For production, set at minimum:
 - `APP_ENV=production`
 - `BASE_URL`
 - `DATABASE_PATH`
+- `DATABASE_BACKEND=postgres`
+- `DATABASE_URL`
+- `REDIS_URL`
+- `RATE_LIMIT_BACKEND=redis`
 - `API_KEYS`
 - `CREATE_RATE_LIMIT`
 - `METADATA_RATE_LIMIT`
@@ -76,19 +82,17 @@ For production, set at minimum:
 
 ## Architecture Notes
 
-SQLite is used here to keep the project fully self-contained. The important correctness behavior is implemented with database transactions and atomic updates:
+The service supports SQLite for local tests and PostgreSQL for production. The important correctness behavior is implemented with database transactions and atomic updates:
 
 - custom code uniqueness uses a unique database constraint;
 - idempotent create uses a unique `(owner_id, key)` constraint;
 - usage-limit enforcement uses one atomic `UPDATE ... WHERE usage_count < usage_limit RETURNING ...`;
-- rate limiting uses transactional counters.
+- rate limiting uses transactional counters locally or Redis atomic counters in production.
 
-For larger production scale, replace the storage adapter with PostgreSQL and move rate-limit counters and queue state to Redis. The API and test behavior should remain the same.
+For AWS production, use `DATABASE_BACKEND=postgres` and `RATE_LIMIT_BACKEND=redis`.
 
 ## AWS
 
 See `AWS_DEPLOYMENT.md` for AWS deployment options.
 
-For the current self-contained Python implementation, the simplest AWS path is EC2 with Docker Compose and an attached EBS volume mounted at `/app/data`.
-
-For higher-scale production use on AWS, run the API and worker on ECS Fargate, use RDS PostgreSQL for durable data, and use ElastiCache Redis for distributed rate limits and queue state. Keep `/healthz` for liveness and use `/readyz` for dependency-aware deployment verification.
+The production AWS path is ECS Fargate for API and worker tasks, RDS PostgreSQL for durable data, and ElastiCache Redis for distributed rate limiting. Terraform lives in `infra/terraform`; deployment notes are in `AWS_DEPLOYMENT.md`.

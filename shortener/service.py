@@ -134,7 +134,7 @@ class LinkService:
                     ),
                 )
             except Exception as exc:
-                if "UNIQUE constraint failed: links.short_code" in str(exc):
+                if self.db.is_unique_violation(exc):
                     raise Conflict("Short code is already in use.", code="duplicate_short_code") from exc
                 raise
 
@@ -268,4 +268,3 @@ class LinkService:
             if not exists:
                 return code
         raise Conflict("Could not allocate a unique short code.", code="short_code_generation_failed")
-

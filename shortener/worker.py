@@ -17,25 +17,9 @@ class ValidationWorker:
 
     def process_one(self, request_id: str = "worker") -> bool:
         now = iso_now()
-        with self.db.transaction() as conn:
-            job = conn.execute(
-                """
-                SELECT validation_jobs.*, links.destination_url
-                FROM validation_jobs
-                JOIN links ON links.id = validation_jobs.link_id
-                WHERE validation_jobs.status IN ('queued', 'retrying')
-                  AND validation_jobs.next_run_at <= ?
-                ORDER BY validation_jobs.created_at
-                LIMIT 1
-                """,
-                (now,),
-            ).fetchone()
-            if not job:
-                return False
-            conn.execute(
-                "UPDATE validation_jobs SET status = 'processing', updated_at = ? WHERE id = ?",
-                (now, job["id"]),
-            )
+        job = self.db.claim_validation_job(now)
+        if not job:
+            return False
 
         try:
             result = self.validator.validate(job["destination_url"])
@@ -124,4 +108,3 @@ class ValidationWorker:
             processed = self.process_one()
             if not processed:
                 time.sleep(1)
-

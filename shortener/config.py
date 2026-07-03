@@ -20,7 +20,11 @@ class Config:
     app_env: str = "development"
     port: int = 8080
     base_url: str = "http://localhost:8080"
+    database_backend: str = "sqlite"
     database_path: str = "data/shortener.db"
+    database_url: str | None = None
+    redis_url: str | None = None
+    rate_limit_backend: str = "database"
     api_keys: tuple[str, ...] = ("dev-api-key",)
     idempotency_ttl_hours: int = 24
     create_rate_limit: str = "60/hour"
@@ -46,7 +50,11 @@ class Config:
             app_env=os.getenv("APP_ENV", "development"),
             port=_int("PORT", 8080),
             base_url=os.getenv("BASE_URL", "http://localhost:8080").rstrip("/"),
+            database_backend=os.getenv("DATABASE_BACKEND", "sqlite"),
             database_path=os.getenv("DATABASE_PATH", "data/shortener.db"),
+            database_url=os.getenv("DATABASE_URL"),
+            redis_url=os.getenv("REDIS_URL"),
+            rate_limit_backend=os.getenv("RATE_LIMIT_BACKEND", "database"),
             api_keys=api_keys or ("dev-api-key",),
             idempotency_ttl_hours=_int("IDEMPOTENCY_TTL_HOURS", 24),
             create_rate_limit=os.getenv("CREATE_RATE_LIMIT", "60/hour"),
@@ -61,4 +69,3 @@ class Config:
             log_destination_urls=_bool(os.getenv("LOG_DESTINATION_URLS"), False),
             service_mode=os.getenv("SERVICE_MODE", "api"),
         )
-

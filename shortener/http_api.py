@@ -8,7 +8,7 @@ from urllib.parse import unquote, urlparse
 from .auth import Authenticator
 from .errors import AppError, BadRequest, DependencyUnavailable
 from .logging_utils import log_event
-from .rate_limit import RateLimiter
+from .rate_limit import create_rate_limiter
 
 LOGGER = logging.getLogger("shortener.http")
 
@@ -59,6 +59,8 @@ class ApiHandler(BaseHTTPRequestHandler):
         if method == "GET" and path == "/readyz":
             if not self.server.db.ready():
                 raise DependencyUnavailable()
+            if hasattr(self.server.rate_limiter, "ready") and not self.server.rate_limiter.ready():
+                raise DependencyUnavailable("Redis is unavailable.", code="redis_unavailable")
             self._send_json(200, {"status": "ready"}, request_id)
             return 200
         if method == "GET" and path == "/metrics":
@@ -140,7 +142,7 @@ class ShortenerServer(ThreadingHTTPServer):
         self.config = config
         self.service = service
         self.authenticator = Authenticator(config.api_keys)
-        self.rate_limiter = RateLimiter(db)
+        self.rate_limiter = create_rate_limiter(config, db)
 
     def metrics_snapshot(self) -> str:
         with self.db.connect() as conn:
@@ -159,4 +161,3 @@ class ShortenerServer(ThreadingHTTPServer):
         )
         lines.extend(f'shortener_validation_jobs{{status="{row["status"]}"}} {row["count"]}' for row in jobs)
         return "\n".join(lines) + "\n"
-

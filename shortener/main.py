@@ -1,5 +1,5 @@
 from .config import Config
-from .db import Database
+from .db import create_database
 from .http_api import ShortenerServer
 from .logging_utils import configure_logging
 from .service import LinkService
@@ -7,7 +7,7 @@ from .worker import ValidationWorker
 
 
 def build_app(config: Config):
-    db = Database(config.database_path)
+    db = create_database(config)
     db.initialize()
     service = LinkService(db, config)
     return db, service
@@ -31,4 +31,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
