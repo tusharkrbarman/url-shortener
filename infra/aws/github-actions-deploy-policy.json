@@ -26,6 +26,32 @@
       "Resource": "arn:aws:ecr:YOUR_REGION:YOUR_AWS_ACCOUNT_ID:repository/url-shortener"
     },
     {
+      "Sid": "TerraformStateBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "s3:PutBucketEncryption",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketVersioning"
+      ],
+      "Resource": "arn:aws:s3:::url-shortener-terraform-state-YOUR_AWS_ACCOUNT_ID-YOUR_REGION"
+    },
+    {
+      "Sid": "TerraformStateObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:DeleteObject",
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::url-shortener-terraform-state-YOUR_AWS_ACCOUNT_ID-YOUR_REGION/prod/terraform.tfstate",
+        "arn:aws:s3:::url-shortener-terraform-state-YOUR_AWS_ACCOUNT_ID-YOUR_REGION/prod/terraform.tfstate.tflock"
+      ]
+    },
+    {
       "Sid": "TerraformEc2Networking",
       "Effect": "Allow",
       "Action": [

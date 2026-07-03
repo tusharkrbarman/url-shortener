@@ -44,5 +44,5 @@ terraform apply
 - API traffic enters through the ALB.
 - ALB health checks use `/healthz`.
 - Application readiness is exposed at `/readyz`.
-- Terraform state contains sensitive values. Use a secure remote backend with encryption and restricted access.
+- GitHub Actions initializes the S3 backend dynamically. For local Terraform runs, pass matching `-backend-config` values for the state bucket, key, region, encryption, and lock file.
 - `db_backup_retention_period` defaults to `1` so free-tier constrained AWS accounts can create the first database. Use `7` or higher for a full production account.

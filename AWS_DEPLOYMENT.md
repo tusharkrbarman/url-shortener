@@ -90,7 +90,9 @@ Required GitHub secrets:
 
 The deploy role needs permissions for every AWS service Terraform manages. A starter inline policy is available at `infra/aws/github-actions-deploy-policy.json`; replace `YOUR_AWS_ACCOUNT_ID` and `YOUR_REGION` before attaching it to the role.
 
-If the first Terraform run fails before remote state is configured, clean up the partially created `url-shortener` resources before re-running. Otherwise, the next GitHub-hosted runner starts with an empty local Terraform state and may try to create duplicates.
+The workflow stores Terraform state in an S3 bucket named `url-shortener-terraform-state-<account-id>-<region>` with bucket versioning, AES-256 encryption, public access blocking, and Terraform's S3 lock file enabled.
+
+If a Terraform run failed before remote state was configured, clean up or import the partially created `url-shortener` resources before re-running. Otherwise Terraform starts from an empty remote state and may try to create duplicates.
 
 ## Operational Checks
 
