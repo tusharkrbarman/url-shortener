@@ -39,9 +39,9 @@ variable "db_password" {
 }
 
 variable "db_backup_retention_period" {
-  description = "RDS automated backup retention in days. Use 1 for free-tier constrained accounts and 7+ for production accounts."
+  description = "RDS automated backup retention in days. Use 0 for free-tier constrained bootstrap accounts and 7+ for production accounts."
   type        = number
-  default     = 1
+  default     = 0
 }
 
 variable "desired_api_count" {

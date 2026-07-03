@@ -5,4 +5,4 @@ base_url                   = "https://links.example.com"
 api_keys                   = "replace-with-long-random-api-key"
 db_username                = "shortener"
 db_password                = "replace-with-long-random-db-password"
-db_backup_retention_period = 1
+db_backup_retention_period = 0

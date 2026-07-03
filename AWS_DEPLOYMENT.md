@@ -92,6 +92,8 @@ The deploy role needs permissions for every AWS service Terraform manages. A sta
 
 The workflow stores Terraform state in an S3 bucket named `url-shortener-terraform-state-<account-id>-<region>` with bucket versioning, AES-256 encryption, public access blocking, and Terraform's S3 lock file enabled.
 
+For free-tier constrained AWS accounts, `db_backup_retention_period` defaults to `0`, which disables automated RDS backups. Set `TF_VAR_db_backup_retention_period` to `7` or higher in a production account.
+
 If a Terraform run failed before remote state was configured, clean up or import the partially created `url-shortener` resources before re-running. Otherwise Terraform starts from an empty remote state and may try to create duplicates.
 
 ## Operational Checks

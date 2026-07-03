@@ -45,4 +45,4 @@ terraform apply
 - ALB health checks use `/healthz`.
 - Application readiness is exposed at `/readyz`.
 - GitHub Actions initializes the S3 backend dynamically. For local Terraform runs, pass matching `-backend-config` values for the state bucket, key, region, encryption, and lock file.
-- `db_backup_retention_period` defaults to `1` so free-tier constrained AWS accounts can create the first database. Use `7` or higher for a full production account.
+- `db_backup_retention_period` defaults to `0` so free-tier constrained AWS accounts can create the first database. This disables automated backups; use `7` or higher for a full production account.
